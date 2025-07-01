@@ -10,7 +10,10 @@ import {
   FiRefreshCw, 
   FiUsers, 
   FiCode,
-  FiFilter
+  FiFilter,
+  FiClock,
+  FiGlobe,
+  FiZap
 } from 'react-icons/fi';
 
 import './App.css';
@@ -32,6 +35,7 @@ function App() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showStudentList, setShowStudentList] = useState(false);
 
   useEffect(() => {
     // Connect to WebSocket server with error handling
@@ -188,6 +192,11 @@ function App() {
     return languages.sort();
   };
 
+  const getUniqueStudents = () => {
+    const students = Array.from(new Set(sharedCodes.map(code => code.studentName)));
+    return students.sort();
+  };
+
   const filteredCodes = sharedCodes.filter(code => {
     const matchesSearch = code.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          code.code.toLowerCase().includes(searchTerm.toLowerCase());
@@ -211,31 +220,122 @@ function App() {
     return colors[language] || '#6c757d';
   };
 
+  const getStats = () => {
+    const totalSubmissions = sharedCodes.length;
+    const uniqueStudents = getUniqueStudents().length;
+    const uniqueLanguages = getUniqueLanguages().length;
+    const recentSubmissions = sharedCodes.filter(code => {
+      const timeDiff = Date.now() - new Date(code.timestamp).getTime();
+      return timeDiff < 5 * 60 * 1000; // Last 5 minutes
+    }).length;
+
+    return { totalSubmissions, uniqueStudents, uniqueLanguages, recentSubmissions };
+  };
+
+  const stats = getStats();
+
   return (
     <div className="App">
       <Toaster position="top-right" />
       
-      {/* Header */}
+      {/* Enhanced Header */}
       <header className="header">
+        <div className="header-background"></div>
         <div className="header-content">
-          <div className="header-left">
-            <h1>
-              <FiCode className="header-icon" />
-              Real-Time Code Sharing
-            </h1>
-            <div className="connection-status">
-              <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}></div>
-              <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+          <div className="header-main">
+            <div className="header-left">
+              <div className="title-section">
+                <FiCode className="header-icon" />
+                <h1>Real-Time Code Sharing</h1>
+                <div className="title-underline"></div>
+              </div>
+              <div className="connection-status">
+                <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}></div>
+                <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+                <FiZap className="connection-icon" />
+              </div>
             </div>
-          </div>
-          <div className="header-right">
-            <div className="stats">
-              <FiUsers className="stats-icon" />
-              <span>{sharedCodes.length} submissions</span>
+            
+            <div className="header-stats">
+              <div className="stat-item">
+                <FiUsers className="stat-icon" />
+                <div className="stat-content">
+                  <span className="stat-number">{stats.totalSubmissions}</span>
+                  <span className="stat-label">Submissions</span>
+                </div>
+              </div>
+              <div 
+                className="stat-item clickable" 
+                onClick={() => setShowStudentList(!showStudentList)}
+                title="Click to view student list"
+              >
+                <FiGlobe className="stat-icon" />
+                <div className="stat-content">
+                  <span className="stat-number">{stats.uniqueStudents}</span>
+                  <span className="stat-label">Students</span>
+                </div>
+              </div>
+              <div className="stat-item">
+                <FiCode className="stat-icon" />
+                <div className="stat-content">
+                  <span className="stat-number">{stats.uniqueLanguages}</span>
+                  <span className="stat-label">Languages</span>
+                </div>
+              </div>
+              <div className="stat-item">
+                <FiClock className="stat-icon" />
+                <div className="stat-content">
+                  <span className="stat-number">{stats.recentSubmissions}</span>
+                  <span className="stat-label">Recent</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </header>
+
+      {/* Student List Modal */}
+      {showStudentList && (
+        <div className="student-list-modal">
+          <div className="student-list-content">
+            <div className="student-list-header">
+              <h3>Student List</h3>
+              <button 
+                className="close-btn"
+                onClick={() => setShowStudentList(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="student-list">
+              {getUniqueStudents().length > 0 ? (
+                getUniqueStudents().map((student, index) => {
+                  const studentSubmissions = sharedCodes.filter(code => code.studentName === student);
+                  const lastSubmission = studentSubmissions[0]; // Most recent
+                  return (
+                    <div key={student} className="student-item">
+                      <div className="student-info">
+                        <span className="student-name">{student}</span>
+                        <span className="student-count">{studentSubmissions.length} submission{studentSubmissions.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      {lastSubmission && (
+                        <div className="student-last-activity">
+                          <span className="last-language">{getLanguageDisplayName(lastSubmission.language)}</span>
+                          <span className="last-time">{formatTimestamp(lastSubmission.timestamp)}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="no-students">
+                  <p>No students have submitted code yet.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error Display */}
       {error && (
@@ -245,7 +345,7 @@ function App() {
         </div>
       )}
 
-      {/* Controls */}
+      {/* Enhanced Controls */}
       <div className="controls">
         <div className="search-filter">
           <div className="search-box">
@@ -302,7 +402,7 @@ function App() {
         </div>
       )}
 
-      {/* Code Submissions */}
+      {/* Enhanced Code Submissions */}
       <div className="submissions-container">
         {filteredCodes.length === 0 ? (
           <div className="empty-state">
@@ -322,7 +422,12 @@ function App() {
                 <div className="submission-header">
                   <div className="student-info">
                     <h3>{code.studentName}</h3>
-                    <span className="timestamp">{formatTimestamp(code.timestamp)}</span>
+                    <div className="submission-meta">
+                      <span className="timestamp">
+                        <FiClock className="meta-icon" />
+                        {formatTimestamp(code.timestamp)}
+                      </span>
+                    </div>
                   </div>
                   <div className="language-badge" style={{ backgroundColor: getLanguageColor(code.language) }}>
                     {getLanguageDisplayName(code.language)}
@@ -340,7 +445,7 @@ function App() {
                     title="Copy code to clipboard"
                   >
                     <FiCopy />
-                    Copy
+                    Copy Code
                   </button>
                 </div>
               </div>

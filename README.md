@@ -11,6 +11,9 @@ To encourage active participation, provide immediate feedback, and foster collab
 ### Lecturer Interface
 ![Lecturer Interface](docs/screenshots/lecturer-interface.png)
 
+### Student List Feature
+![Student List](docs/screenshots/students_list.png)
+
 ### VSCode Extension
 ![VSCode Extension](docs/screenshots/vscode-extension.png)
 
@@ -69,6 +72,7 @@ Real-time code_sharing/
 ### 👨‍🏫 **Lecturer Experience**
 - **Real-Time Updates**: Live code submissions appear instantly
 - **📊 Statistics Dashboard**: View total submissions, active students, and languages
+- **👥 Student List**: Click on "Students" stat to view detailed student list with submission counts and last activity
 - **🔍 Search & Filter**: Find specific students or filter by programming language
 - **📋 Copy Code**: One-click copy any student's code to clipboard
 - **📥 Export Feature**: Download all submissions as JSON file
@@ -102,6 +106,7 @@ Real-time code_sharing/
 - ✅ Name memory feature
 - ✅ Search and filter functionality
 - ✅ Statistics dashboard
+- ✅ Student list modal with detailed information
 - ✅ Copy and export features
 - ✅ Syntax highlighting
 - ✅ Toast notifications
