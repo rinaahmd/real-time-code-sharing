@@ -6,6 +6,14 @@ A powerful and modern real-time code sharing system that allows first-year stude
 
 To encourage active participation, provide immediate feedback, and foster collaborative learning by enabling real-time code sharing between students and lecturers with a professional, user-friendly interface.
 
+## 📸 Screenshots
+
+### Lecturer Interface
+![Lecturer Interface](docs/screenshots/lecturer-interface.png)
+
+### VSCode Extension
+![VSCode Extension](docs/screenshots/vscode-extension.png)
+
 ## 🏗️ Project Structure
 
 ```
