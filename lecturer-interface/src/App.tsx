@@ -15,13 +15,6 @@ import {
 
 import './App.css';
 
-// Declare Prism as global for TypeScript
-declare global {
-  interface Window {
-    Prism: any;
-  }
-}
-
 interface SharedCode {
   id: string;
   studentName: string;
@@ -38,71 +31,7 @@ function App() {
   const [selectedLanguage, setSelectedLanguage] = useState('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [prismLoaded, setPrismLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Load PrismJS dynamically with better error handling
-  useEffect(() => {
-    const loadPrismJS = async () => {
-      try {
-        // Check if PrismJS is already loaded
-        if (window.Prism) {
-          setPrismLoaded(true);
-          return;
-        }
-
-        // Load PrismJS CSS
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css';
-        link.onerror = () => console.warn('Failed to load PrismJS CSS');
-        document.head.appendChild(link);
-
-        // Load PrismJS script
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js';
-        script.onload = () => {
-          try {
-            // Load additional language components
-            const languages = ['javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'markup', 'css', 'json'];
-            let loadedCount = 0;
-            
-            languages.forEach(lang => {
-              const langScript = document.createElement('script');
-              langScript.src = `https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-${lang}.min.js`;
-              langScript.onload = () => {
-                loadedCount++;
-                if (loadedCount === languages.length) {
-                  setPrismLoaded(true);
-                }
-              };
-              langScript.onerror = () => {
-                console.warn(`Failed to load PrismJS language: ${lang}`);
-                loadedCount++;
-                if (loadedCount === languages.length) {
-                  setPrismLoaded(true);
-                }
-              };
-              document.head.appendChild(langScript);
-            });
-          } catch (error) {
-            console.warn('Error loading PrismJS languages:', error);
-            setPrismLoaded(true);
-          }
-        };
-        script.onerror = () => {
-          console.warn('Failed to load PrismJS core');
-          setPrismLoaded(true);
-        };
-        document.head.appendChild(script);
-      } catch (error) {
-        console.error('Failed to load PrismJS:', error);
-        setPrismLoaded(true);
-      }
-    };
-
-    loadPrismJS();
-  }, []);
 
   useEffect(() => {
     // Connect to WebSocket server with error handling
@@ -187,28 +116,9 @@ function App() {
     };
   }, [autoRefresh]);
 
-  // Apply syntax highlighting when codes change and PrismJS is loaded
-  useEffect(() => {
-    if (prismLoaded && window.Prism) {
-      try {
-        setTimeout(() => {
-          if (window.Prism && window.Prism.highlightAll) {
-            window.Prism.highlightAll();
-          }
-        }, 100);
-      } catch (error) {
-        console.warn('Error applying syntax highlighting:', error);
-      }
-    }
-  }, [sharedCodes, prismLoaded]);
-
   const formatTimestamp = (timestamp: Date | string) => {
-    try {
-      const date = new Date(timestamp);
-      return date.toLocaleTimeString();
-    } catch (error) {
-      return 'Unknown time';
-    }
+    const date = new Date(timestamp);
+    return date.toLocaleString();
   };
 
   const getLanguageDisplayName = (language: string) => {
@@ -222,7 +132,7 @@ function App() {
       'html': 'HTML',
       'css': 'CSS',
       'json': 'JSON',
-      'text': 'Text'
+      'markup': 'Markup'
     };
     return languageMap[language] || language;
   };
@@ -232,283 +142,212 @@ function App() {
       await navigator.clipboard.writeText(code);
       toast.success(`Copied ${studentName}'s code to clipboard!`);
     } catch (error) {
-      console.error('Failed to copy code:', error);
-      toast.error('Failed to copy code');
+      console.error('Failed to copy to clipboard:', error);
+      toast.error('Failed to copy to clipboard');
     }
   };
 
   const clearAllCodes = async () => {
     try {
-      await axios.delete('http://localhost:3001/api/codes', {
-        timeout: 5000
-      });
+      await axios.delete('http://localhost:3001/api/codes');
       setSharedCodes([]);
-      toast.success('All code submissions cleared!');
+      toast.success('All code submissions cleared');
     } catch (error) {
-      console.error('Failed to clear submissions:', error);
-      toast.error('Failed to clear submissions');
+      console.error('Failed to clear codes:', error);
+      toast.error('Failed to clear code submissions');
     }
   };
 
   const exportAllCodes = () => {
-    try {
-      const exportData = sharedCodes.map(code => ({
-        student: code.studentName,
-        language: code.language,
-        timestamp: formatTimestamp(code.timestamp),
-        code: code.code
-      }));
-
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-        type: 'application/json'
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `code-submissions-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Code submissions exported!');
-    } catch (error) {
-      console.error('Failed to export codes:', error);
-      toast.error('Failed to export submissions');
+    if (sharedCodes.length === 0) {
+      toast.error('No code submissions to export');
+      return;
     }
+
+    const exportData = sharedCodes.map(code => ({
+      student: code.studentName,
+      language: code.language,
+      code: code.code,
+      timestamp: formatTimestamp(code.timestamp)
+    }));
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `code-submissions-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Code submissions exported successfully!');
   };
 
   const getUniqueLanguages = () => {
-    try {
-      const languageSet = new Set(sharedCodes.map(code => code.language));
-      const languages = Array.from(languageSet);
-      return languages.sort();
-    } catch (error) {
-      console.error('Error getting unique languages:', error);
-      return [];
-    }
+    const languages = Array.from(new Set(sharedCodes.map(code => code.language)));
+    return languages.sort();
   };
 
   const filteredCodes = sharedCodes.filter(code => {
-    try {
-      const matchesSearch = code.studentName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesLanguage = selectedLanguage === 'all' || code.language === selectedLanguage;
-      return matchesSearch && matchesLanguage;
-    } catch (error) {
-      console.error('Error filtering codes:', error);
-      return false;
-    }
+    const matchesSearch = code.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         code.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesLanguage = selectedLanguage === 'all' || code.language === selectedLanguage;
+    return matchesSearch && matchesLanguage;
   });
 
-  const stats = {
-    totalSubmissions: sharedCodes.length,
-    uniqueStudents: Array.from(new Set(sharedCodes.map(code => code.studentName))).length,
-    languages: getUniqueLanguages().length
+  const getLanguageColor = (language: string) => {
+    const colors: { [key: string]: string } = {
+      'javascript': '#f7df1e',
+      'typescript': '#3178c6',
+      'python': '#3776ab',
+      'java': '#ed8b00',
+      'cpp': '#00599c',
+      'c': '#a8b9cc',
+      'html': '#e34f26',
+      'css': '#1572b6',
+      'json': '#000000',
+      'markup': '#ff6b35'
+    };
+    return colors[language] || '#6c757d';
   };
-
-  // Show error state if there's a connection error
-  if (error && !isConnected) {
-    return (
-      <div className="App">
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-          }}
-        />
-        
-        <header className="App-header">
-          <h1>🖥️ Real-Time Code Sharing</h1>
-          <div className="connection-status">
-            <span className="status-indicator disconnected">
-              🔴 Disconnected
-            </span>
-          </div>
-        </header>
-
-        <main className="App-main">
-          <div className="error-state">
-            <h2>⚠️ Connection Error</h2>
-            <p>{error}</p>
-            <p>Please make sure the backend server is running on port 3001.</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="action-btn"
-              style={{ marginTop: '1rem' }}
-            >
-              <FiRefreshCw />
-              Retry Connection
-            </button>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="App">
-       <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-        }}
-      />
+      <Toaster position="top-right" />
       
-      <header className="App-header">
-        <h1>🖥️ Real-Time Code Sharing</h1>
-        <div className="connection-status">
-          <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
-            {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
-          </span>
+      {/* Header */}
+      <header className="header">
+        <div className="header-content">
+          <div className="header-left">
+            <h1>
+              <FiCode className="header-icon" />
+              Real-Time Code Sharing
+            </h1>
+            <div className="connection-status">
+              <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}></div>
+              <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+            </div>
+          </div>
+          <div className="header-right">
+            <div className="stats">
+              <FiUsers className="stats-icon" />
+              <span>{sharedCodes.length} submissions</span>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="App-main">
-        {/* Statistics Cards */}
-        <div className="stats-container">
-          <div className="stat-card">
-            <FiUsers className="stat-icon" />
-            <div className="stat-content">
-              <h3>{stats.totalSubmissions}</h3>
-              <p>Total Submissions</p>
-            </div>
+      {/* Error Display */}
+      {error && (
+        <div className="error-banner">
+          <p>{error}</p>
+          <button onClick={() => setError(null)}>×</button>
+        </div>
+      )}
+
+      {/* Controls */}
+      <div className="controls">
+        <div className="search-filter">
+          <div className="search-box">
+            <FiSearch className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search by student name or code..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          <div className="stat-card">
-            <FiUsers className="stat-icon" />
-            <div className="stat-content">
-              <h3>{stats.uniqueStudents}</h3>
-              <p>Active Students</p>
-            </div>
-          </div>
-          <div className="stat-card">
-            <FiCode className="stat-icon" />
-            <div className="stat-content">
-              <h3>{stats.languages}</h3>
-              <p>Languages Used</p>
-            </div>
+          <div className="filter-box">
+            <FiFilter className="filter-icon" />
+            <select
+              value={selectedLanguage}
+              onChange={(e) => setSelectedLanguage(e.target.value)}
+              aria-label="Filter by programming language"
+            >
+              <option value="all">All Languages</option>
+              {getUniqueLanguages().map(lang => (
+                <option key={lang} value={lang}>
+                  {getLanguageDisplayName(lang)}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-
-        {/* Controls */}
-        <div className="controls-container">
-          <div className="search-filter-container">
-            <div className="search-box">
-              <FiSearch className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search by student name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
-              />
-            </div>
-            <div className="filter-box">
-              <FiFilter className="filter-icon" />
-              <select
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="filter-select"
-                aria-label="Filter by programming language"
-              >
-                <option value="all">All Languages</option>
-                {getUniqueLanguages().map(lang => (
-                  <option key={lang} value={lang}>
-                    {getLanguageDisplayName(lang)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          
-          <div className="action-buttons">
-            <button
-              onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`action-btn ${autoRefresh ? 'active' : ''}`}
-              title={autoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh'}
-            >
-              <FiRefreshCw className={`refresh-icon ${autoRefresh ? 'spinning' : ''}`} />
-              Auto-refresh
-            </button>
-            <button
-              onClick={exportAllCodes}
-              className="action-btn"
-              disabled={sharedCodes.length === 0}
-              title="Export all submissions"
-            >
-              <FiDownload />
-              Export
-            </button>
-            <button
-              onClick={clearAllCodes}
-              className="action-btn danger"
-              disabled={sharedCodes.length === 0}
-              title="Clear all submissions"
-            >
-              <FiTrash2 />
-              Clear All
-            </button>
-          </div>
+        
+        <div className="action-buttons">
+          <button
+            className={`refresh-toggle ${autoRefresh ? 'active' : ''}`}
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            title={autoRefresh ? 'Auto-refresh enabled' : 'Auto-refresh disabled'}
+          >
+            <FiRefreshCw className={autoRefresh ? 'spinning' : ''} />
+            Auto-refresh
+          </button>
+          <button className="export-btn" onClick={exportAllCodes}>
+            <FiDownload />
+            Export All
+          </button>
+          <button className="clear-btn" onClick={clearAllCodes}>
+            <FiTrash2 />
+            Clear All
+          </button>
         </div>
+      </div>
 
-        {/* Loading State */}
-        {isLoading && (
-          <div className="loading-state">
-            <div className="loading-spinner"></div>
-            <p>Loading code submissions...</p>
-          </div>
-        )}
+      {/* Loading State */}
+      {isLoading && (
+        <div className="loading">
+          <div className="spinner"></div>
+          <p>Loading code submissions...</p>
+        </div>
+      )}
 
-        {/* Code Submissions */}
-        {!isLoading && filteredCodes.length === 0 ? (
+      {/* Code Submissions */}
+      <div className="submissions-container">
+        {filteredCodes.length === 0 ? (
           <div className="empty-state">
-            <h2>No code shared yet</h2>
+            <FiCode className="empty-icon" />
+            <h3>No code submissions yet</h3>
             <p>
               {searchTerm || selectedLanguage !== 'all' 
-                ? 'No submissions match your search criteria.' 
-                : 'When students share their code, it will appear here in real-time.'}
+                ? 'No submissions match your current filters'
+                : 'Students can share their code using the VSCode extension'
+              }
             </p>
           </div>
         ) : (
-          <div className="codes-container">
-            {filteredCodes.map((sharedCode) => (
-              <div key={sharedCode.id} className="code-card">
-                <div className="code-header">
+          <div className="submissions-grid">
+            {filteredCodes.map((code) => (
+              <div key={code.id} className="submission-card">
+                <div className="submission-header">
                   <div className="student-info">
-                    <h3>👤 {sharedCode.studentName}</h3>
-                    <span className="language-badge">
-                      {getLanguageDisplayName(sharedCode.language)}
-                    </span>
+                    <h3>{code.studentName}</h3>
+                    <span className="timestamp">{formatTimestamp(code.timestamp)}</span>
                   </div>
-                  <div className="code-actions">
-                    <span className="timestamp">
-                      {formatTimestamp(sharedCode.timestamp)}
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(sharedCode.code, sharedCode.studentName)}
-                      className="copy-btn"
-                      title="Copy code to clipboard"
-                    >
-                      <FiCopy />
-                    </button>
+                  <div className="language-badge" style={{ backgroundColor: getLanguageColor(code.language) }}>
+                    {getLanguageDisplayName(code.language)}
                   </div>
                 </div>
-                <pre className="code-content">
-                  <code className={`language-${sharedCode.language}`}>
-                    {sharedCode.code}
-                  </code>
-                </pre>
+                <div className="code-container">
+                  <pre className="code-block">
+                    <code>{code.code}</code>
+                  </pre>
+                </div>
+                <div className="submission-actions">
+                  <button
+                    className="copy-btn"
+                    onClick={() => copyToClipboard(code.code, code.studentName)}
+                    title="Copy code to clipboard"
+                  >
+                    <FiCopy />
+                    Copy
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }
