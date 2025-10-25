@@ -1,0 +1,22 @@
+# Student Configuration File
+# Add your students here - one name per line
+# Lines starting with # are comments and will be ignored
+
+# Example students (uncomment and modify as needed):
+# Alice
+# Bob
+# Charlie
+# Diana
+# Emma
+# Frank
+# Grace
+# Henry
+# Isabella
+# Jack
+
+# Add your students below:
+Sarah
+Michael
+Emily
+David
+Lisa
